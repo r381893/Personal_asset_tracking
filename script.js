@@ -1,6 +1,5 @@
-
 // --- 設定 ---
-const STORAGE_KEY = 'assetTrackerRecords'; // 確保唯一的儲存鍵
+const STORAGE_KEY = 'assetTrackerRecords'; 
 const assetForm = document.getElementById('assetForm');
 const recordList = document.getElementById('recordList');
 const latestSummary = document.getElementById('latestSummary');
@@ -8,7 +7,7 @@ const clearDataBtn = document.getElementById('clearDataBtn');
 const totalAssetCtx = document.getElementById('totalAssetChart').getContext('2d');
 const dailyChangeCtx = document.getElementById('dailyChangeChart').getContext('2d');
 
-let records = []; // 儲存計算後的紀錄
+let records = []; 
 let totalAssetChart;
 let dailyChangeChart;
 
@@ -16,6 +15,8 @@ let dailyChangeChart;
 
 // 格式化數字為千位分隔，並加上 NT$ 符號
 const formatCurrency = (amount) => {
+    // 確保處理數字，並避免 NaN
+    if (isNaN(amount) || amount === null) return 'NT$ 0';
     return new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0 }).format(amount);
 };
 
@@ -26,6 +27,26 @@ const getWeekday = (dateString) => {
     if (isNaN(date)) return '';
     return `週${days[date.getDay()]}`;
 };
+
+// 初始化日期輸入欄位為今天的日期
+const initializeDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    
+    const dateInput = document.getElementById('date');
+    const todayDateString = `${year}-${month}-${day}`;
+    
+    // 如果日期輸入框目前沒有值，則填入今天的日期
+    if (!dateInput.value) {
+        dateInput.value = todayDateString;
+    }
+    
+    // 同步顯示星期幾
+    document.getElementById('weekdayDisplay').textContent = getWeekday(dateInput.value);
+};
+
 
 // --- 核心邏輯：Excel 公式模擬 ---
 
@@ -92,7 +113,8 @@ const updateSummary = () => {
     const initial = records[0];
 
     const totalGain = latest.totalAsset - initial.totalAsset;
-    const gainPercent = (totalGain / initial.totalAsset) * 100;
+    // 避免除以零
+    const gainPercent = initial.totalAsset !== 0 ? (totalGain / initial.totalAsset) * 100 : 0; 
     const changeClass = totalGain >= 0 ? 'style="color: green; font-weight: bold;"' : 'style="color: red; font-weight: bold;"';
 
     latestSummary.innerHTML = `
@@ -113,11 +135,16 @@ const drawCharts = () => {
     if (dailyChangeChart) dailyChangeChart.destroy();
 
     if (records.length < 1) {
-        // 沒有數據不繪圖
         return;
     }
 
-    const labels = records.map(r => `${r.date} (${getWeekday(r.date)})`);
+    // 🌟 關鍵修改: 優化橫軸標籤，只顯示 MM/DD
+    const labels = records.map(r => {
+        // r.date is 'YYYY-MM-DD'
+        const parts = r.date.split('-'); 
+        return `${parts[1]}/${parts[2]}`; // 顯示 MM/DD
+    });
+    
     const totalAssets = records.map(r => r.totalAsset);
     const asset1Changes = records.map(r => r.asset1Change);
     const asset2Changes = records.map(r => r.asset2Change);
@@ -174,12 +201,12 @@ const drawCharts = () => {
 const renderRecords = () => {
     recordList.innerHTML = '';
     
-    // 反向迭代，讓最新紀錄顯示在最上方
     if (records.length === 0) {
         recordList.innerHTML = '<p class="small" style="text-align: center;">尚未有任何歷史紀錄。</p>';
         return;
     }
 
+    // 反向迭代，讓最新紀錄顯示在最上方
     [...records].reverse().forEach((record) => {
         const recordElement = document.createElement('div');
         recordElement.classList.add('record');
@@ -220,17 +247,16 @@ assetForm.addEventListener('submit', (e) => {
     const existingIndex = records.findIndex(r => r.date === newDate);
     
     if (existingIndex > -1) {
-        // 覆蓋舊紀錄 (只覆蓋原始輸入值)
         records[existingIndex] = newRecord; 
         alert(`日期 ${newDate} 的紀錄已更新！`);
     } else {
-        // 新增紀錄
         records.push(newRecord); 
         alert('新紀錄已儲存！');
     }
 
-    saveRecords(); // 儲存到 localStorage 並重新載入
-    assetForm.reset();
+    saveRecords(); 
+    // 提交後不需要 reset，保持在今天日期，讓用戶可以連續紀錄
+    // assetForm.reset(); 
 });
 
 // 2. 刪除紀錄
@@ -259,5 +285,8 @@ document.getElementById('date').addEventListener('change', (e) => {
     document.getElementById('weekdayDisplay').textContent = getWeekday(e.target.value);
 });
 
-// 頁面載入時執行
-window.onload = loadRecords;
+// 頁面載入時執行 (包含新的初始化日期功能)
+window.onload = () => {
+    initializeDate(); // 預設今天的日期
+    loadRecords();    // 載入歷史紀錄
+};
