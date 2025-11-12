@@ -28,7 +28,7 @@ const getWeekday = (dateString) => {
     return `週${days[date.getDay()]}`;
 };
 
-// ⭐️ 新增：初始化日期輸入欄位為今天的日期
+// 初始化日期輸入欄位為今天的日期
 const initializeDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -61,7 +61,7 @@ const calculateRecords = (rawRecords) => {
     return rawRecords.map((record, index) => {
         const currentAsset1 = parseFloat(record.asset1);
         const currentAsset2 = parseFloat(record.asset2);
-        const currentTotal = currentAsset1 + currentAsset2;
+        const currentTotal = currentAsset1 + currentAsset2; // ⭐️ 計算總資產
 
         // 計算變化量 (只有第一天變化量為 0，之後為當日減前日)
         const asset1Change = index === 0 ? 0 : currentAsset1 - previousAsset1;
@@ -138,7 +138,7 @@ const drawCharts = () => {
         return;
     }
 
-    // ⭐️ 核心修改: 優化橫軸標籤，只顯示 MM/DD，避免標籤過長導致圖表拉伸
+    // 優化橫軸標籤，只顯示 MM/DD
     const labels = records.map(r => {
         // r.date is 'YYYY-MM-DD'
         const parts = r.date.split('-'); 
@@ -164,11 +164,10 @@ const drawCharts = () => {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false, // 讓 CSS 更好地控制寬高
+            maintainAspectRatio: false, 
             scales: { 
                 y: { beginAtZero: false },
                 x: {
-                    // 如果數據點很多，可以調整這裡讓標籤錯位顯示
                     ticks: {
                         autoSkip: true,
                         maxRotation: 0,
@@ -199,7 +198,7 @@ const drawCharts = () => {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false, // 讓 CSS 更好地控制寬高
+            maintainAspectRatio: false, 
             scales: {
                 x: { stacked: false },
                 y: { beginAtZero: true }
@@ -239,26 +238,44 @@ const renderRecords = () => {
 
 // --- 事件監聽器 ---
 
-// 1. 提交表單新增或更新紀錄
+// 1. 提交表單新增或更新紀錄 (已修改：實現每日最高值原則)
 assetForm.addEventListener('submit', (e) => {
     e.preventDefault();
     
     const newDate = document.getElementById('date').value;
-    const newAsset1 = document.getElementById('asset1').value;
-    const newAsset2 = document.getElementById('asset2').value;
+    const newAsset1 = parseFloat(document.getElementById('asset1').value);
+    const newAsset2 = parseFloat(document.getElementById('asset2').value);
+    
+    // 計算新紀錄的總資產
+    const newTotalAsset = newAsset1 + newAsset2;
 
     const newRecord = {
         date: newDate,
-        asset1: parseFloat(newAsset1),
-        asset2: parseFloat(newAsset2),
+        asset1: newAsset1,
+        asset2: newAsset2,
     };
 
+    // 檢查是否有重複日期
     const existingIndex = records.findIndex(r => r.date === newDate);
     
     if (existingIndex > -1) {
-        records[existingIndex] = newRecord; 
-        alert(`日期 ${newDate} 的紀錄已更新！`);
+        // 如果已存在紀錄
+        
+        // 為了比較，需要先計算現有紀錄的總資產 (雖然 records 裡已經計算過，但我們用原始輸入確保準確)
+        const existingTotalAsset = records[existingIndex].asset1 + records[existingIndex].asset2;
+
+        if (newTotalAsset > existingTotalAsset) {
+            // ⭐️ 情況一：新輸入的總資產更高，覆蓋舊紀錄
+            records[existingIndex] = newRecord; 
+            alert(`日期 ${newDate} 的資產已更新！總資產 (${formatCurrency(newTotalAsset)}) 高於舊紀錄 (${formatCurrency(existingTotalAsset)})，已採用新值。`);
+        } else {
+            // 情況二：新輸入的總資產較低或相等，不覆蓋，維持舊紀錄
+            alert(`日期 ${newDate} 的資產紀錄維持不變。新總資產 (${formatCurrency(newTotalAsset)}) 未高於現有紀錄 (${formatCurrency(existingTotalAsset)})。`);
+            // 不執行 records[existingIndex] = newRecord;
+        }
+
     } else {
+        // 情況三：新增紀錄
         records.push(newRecord); 
         alert('新紀錄已儲存！');
     }
@@ -292,7 +309,7 @@ document.getElementById('date').addEventListener('change', (e) => {
     document.getElementById('weekdayDisplay').textContent = getWeekday(e.target.value);
 });
 
-// 頁面載入時執行 (包含新的初始化日期功能)
+// 頁面載入時執行 (包含初始化日期功能)
 window.onload = () => {
     initializeDate(); // 預設今天的日期
     loadRecords();    // 載入歷史紀錄
