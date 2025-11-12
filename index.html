@@ -101,6 +101,15 @@
             margin-top: 2rem;
             padding-top: 1rem;
             border-top: 1px solid #ccc;
+            /* 讓圖表部分在必要時可以滾動，避免拉伸頁面 */
+            overflow-x: auto; 
+        }
+        /* ⭐️ 核心修正：強制 Canvas 容器的寬度行為，解決拉伸問題 */
+        canvas {
+            max-width: 100% !important; 
+            height: 300px !important;   /* 固定高度 */
+            box-sizing: border-box;     
+            min-width: 300px; /* 給予一個最小寬度，避免在極窄螢幕上壓縮過度 */
         }
     </style>
 </head>
