@@ -28,7 +28,7 @@ const getWeekday = (dateString) => {
     return `週${days[date.getDay()]}`;
 };
 
-// 初始化日期輸入欄位為今天的日期
+// ⭐️ 新增：初始化日期輸入欄位為今天的日期
 const initializeDate = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -138,7 +138,7 @@ const drawCharts = () => {
         return;
     }
 
-    // 🌟 關鍵修改: 優化橫軸標籤，只顯示 MM/DD
+    // ⭐️ 核心修改: 優化橫軸標籤，只顯示 MM/DD，避免標籤過長導致圖表拉伸
     const labels = records.map(r => {
         // r.date is 'YYYY-MM-DD'
         const parts = r.date.split('-'); 
@@ -164,8 +164,18 @@ const drawCharts = () => {
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
-            scales: { y: { beginAtZero: false } }
+            maintainAspectRatio: false, // 讓 CSS 更好地控制寬高
+            scales: { 
+                y: { beginAtZero: false },
+                x: {
+                    // 如果數據點很多，可以調整這裡讓標籤錯位顯示
+                    ticks: {
+                        autoSkip: true,
+                        maxRotation: 0,
+                        minRotation: 0
+                    }
+                }
+            }
         }
     });
 
@@ -178,18 +188,18 @@ const drawCharts = () => {
                 {
                     label: '資產一 (台股) 變化',
                     data: asset1Changes,
-                    backgroundColor: 'rgba(46, 204, 113, 0.7)', // 綠色系
+                    backgroundColor: 'rgba(46, 204, 113, 0.7)', 
                 },
                 {
                     label: '資產二 (美股) 變化',
                     data: asset2Changes,
-                    backgroundColor: 'rgba(230, 126, 34, 0.7)', // 橘色系
+                    backgroundColor: 'rgba(230, 126, 34, 0.7)', 
                 }
             ]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: false, // 讓 CSS 更好地控制寬高
             scales: {
                 x: { stacked: false },
                 y: { beginAtZero: true }
@@ -243,7 +253,6 @@ assetForm.addEventListener('submit', (e) => {
         asset2: parseFloat(newAsset2),
     };
 
-    // 檢查是否有重複日期，若有則覆蓋 (實現更新功能)
     const existingIndex = records.findIndex(r => r.date === newDate);
     
     if (existingIndex > -1) {
@@ -255,8 +264,6 @@ assetForm.addEventListener('submit', (e) => {
     }
 
     saveRecords(); 
-    // 提交後不需要 reset，保持在今天日期，讓用戶可以連續紀錄
-    // assetForm.reset(); 
 });
 
 // 2. 刪除紀錄
