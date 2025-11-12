@@ -1,4 +1,190 @@
-<script>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資產追蹤器 - 獨立篩選版</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px;
+            background-color: #f4f7f6; 
+            color: #333;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 20px auto; 
+            background-color: #fff; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); 
+        }
+        h1 { 
+            text-align: center; 
+            color: #2c3e50; 
+            margin-bottom: 30px;
+        }
+        h2 { 
+            border-bottom: 2px solid #ecf0f1; 
+            padding-bottom: 8px; 
+            margin-top: 30px; 
+            color: #34495e;
+        }
+        h3 {
+            margin-top: 20px;
+            color: #4f6b86;
+        }
+        .form-group { 
+            margin-bottom: 15px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 5px; 
+            font-weight: 600; 
+        }
+        input[type="date"], input[type="number"] { 
+            width: 100%; 
+            padding: 10px; 
+            box-sizing: border-box; 
+            border: 1px solid #bdc3c7; 
+            border-radius: 6px; 
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        button { 
+            padding: 10px 15px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            color: white; 
+            font-weight: bold;
+            transition: opacity 0.3s; 
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .submit-btn { background: #3498db; width: 100%; }
+        .delete-btn { background: #e74c3c; }
+        .delete-btn:hover { background: #c0392b; }
+        .record { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px 0; 
+            border-bottom: 1px dashed #ecf0f1; 
+        }
+        .record-left { 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .record-left span {
+            margin-top: 4px;
+        }
+        .record:last-child { 
+            border-bottom: none; 
+        }
+        .small {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        .color\:green { color: #2ecc71; }
+        .color\:red { color: #e74c3c; }
+
+        #latestSummary {
+            margin-bottom: 25px; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            background-color: #f0f8ff; 
+            line-height: 1.6;
+        }
+        /* 樣式優化：為時間範圍按鈕添加基礎 active 樣式 */
+        .range-btn, .record-range-btn {
+            padding: 6px 10px !important; 
+            font-size: 0.85rem;
+            flex-grow: 1; 
+            min-width: 50px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>💰 我的資產追蹤器</h1>
+
+        <div id="latestSummary">
+            <strong>尚未有紀錄。</strong> 請新增第一筆資產數據。
+        </div>
+
+        <div style="margin-bottom: 20px; padding-top: 10px;">
+            <button type="button" id="clearDataBtn" class="delete-btn" style="background: #95a5a6; width: 100%; margin-bottom: 10px;">清除所有本機數據</button>
+            
+            <div style="display: flex; gap: 8px;">
+                <button type="button" id="exportDataBtn" style="background: #27ae60; flex: 1;">💾 匯出數據 (.json)</button>
+                <button type="button" id="importDataBtn" style="background: #f39c12; flex: 1;">📤 匯入數據</button>
+                <input type="file" id="importFile" accept=".json" style="display:none;" />
+            </div>
+        </div>
+        
+        <h2>📝 紀錄每日資產</h2>
+        <form id="assetForm">
+            <div class="form-group">
+                <label for="date">日期 <span id="weekdayDisplay" style="font-weight: normal; color: #7f8c8d;"></span></label>
+                <input type="date" id="date" required>
+            </div>
+            <div class="form-group">
+                <label for="asset1">資產一 (台股)</label>
+                <input type="number" id="asset1" step="0.01" required value="0">
+            </div>
+            <div class="form-group">
+                <label for="asset2">資產二 (美股)</label>
+                <input type="number" id="asset2" step="0.01" required value="0">
+            </div>
+            <button type="submit" class="submit-btn">儲存/更新紀錄 (每日僅取最高總資產)</button>
+        </form>
+
+        <h2>📊 趨勢分析</h2>
+        
+        <div id="timeRangeControls" style="margin-bottom: 15px; display: flex; gap: 8px;">
+            <button type="button" data-range="30" class="range-btn" style="background: #e74c3c;">近 1 個月</button>
+            <button type="button" data-range="90" class="range-btn" style="background: #f39c12;">近 3 個月</button>
+            <button type="button" data-range="180" class="range-btn" style="background: #2ecc71;">近 6 個月</button>
+            <button type="button" data-range="365" class="range-btn" style="background: #3498db;">近 1 年</button>
+            <button type="button" data-range="all" class="range-btn" style="background: #607d8b;">全部</button>
+        </div>
+        
+        <h3>總資產趨勢</h3>
+        <div style="height: 300px; margin-bottom: 20px;">
+            <canvas id="totalAssetChart"></canvas>
+        </div>
+
+        <h3>每日變化量</h3>
+        <div style="height: 300px; margin-bottom: 20px;">
+            <canvas id="dailyChangeChart"></canvas>
+        </div>
+
+        <h2>📋 歷史紀錄 (獨立篩選)</h2>
+        
+        <div id="recordTimeRangeControls" style="margin-bottom: 15px; display: flex; gap: 8px;">
+            <button type="button" data-range="30" class="record-range-btn" style="background: #e74c3c;">近 1 個月</button>
+            <button type="button" data-range="90" class="record-range-btn" style="background: #f39c12;">近 3 個月</button>
+            <button type="button" data-range="180" class="record-range-btn" style="background: #2ecc71;">近 6 個月</button>
+            <button type="button" data-range="365" class="record-range-btn" style="background: #3498db;">近 1 年</button>
+            <button type="button" data-range="all" class="record-range-btn" style="background: #607d8b;">全部</button>
+        </div>
+
+        <div id="recordList">
+            </div>
+        
+    </div>
+
+    <script>
         // --- 設定 ---
         const STORAGE_KEY = 'assetTrackerRecords'; 
         const assetForm = document.getElementById('assetForm');
@@ -16,9 +202,9 @@
         let records = []; 
         let totalAssetChart;
         let dailyChangeChart;
-        // ⭐️ 修改：預設為 '30' (近 1 個月)
+        // 預設為 '30' (近 1 個月)
         let currentChartRange = '30'; 
-        // ⭐️ 修改：預設為 '30' (近 1 個月)
+        // 預設為 '30' (近 1 個月)
         let currentRecordRange = '30'; 
 
         // --- 輔助函式 ---
@@ -416,12 +602,12 @@
             initializeDate(); 
             loadRecords();
             
-            // ⭐️ 修改：確保頁面載入時，圖表「近 1 個月」按鈕被預設標記
+            // 確保頁面載入時，圖表「近 1 個月」按鈕被預設標記
             const defaultChartBtn = document.querySelector('#timeRangeControls [data-range="30"]');
             if (defaultChartBtn) {
                 defaultChartBtn.style.border = '2px solid #2c3e50';
             }
-            // ⭐️ 修改：確保頁面載入時，紀錄「近 1 個月」按鈕被預設標記
+            // 確保頁面載入時，紀錄「近 1 個月」按鈕被預設標記
             const defaultRecordBtn = document.querySelector('#recordTimeRangeControls [data-range="30"]');
             if (defaultRecordBtn) {
                 defaultRecordBtn.style.border = '2px solid #2c3e50';
