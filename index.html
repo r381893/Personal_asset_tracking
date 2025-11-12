@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <title>個人資產追蹤儀表板</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* 基礎樣式設定 */
+        body {
+            font-family: "Noto Sans TC", sans-serif;
+            background: #f2f4f8;
+            margin: 0;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 700px;
+            margin: auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        /* 表單與輸入框樣式 */
+        label {
+            display: block;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.3rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        /* 紀錄列表樣式 */
+        .record {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: center;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 0.6rem;
+            margin-top: 0.6rem;
+            border: 1px solid #eee;
+        }
+        .record-left {
+            display: flex;
+            flex-direction: column;
+        }
+        .delete-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: auto; /* 覆蓋 button 的全寬 */
+            font-size: 0.9rem;
+        }
+        .weekday {
+            display: inline-block;
+            margin-left: 0.6rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .small {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        /* 摘要區塊樣式 */
+        .latest-summary {
+            padding: 1rem;
+            background: #ecf0f1;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            border-left: 5px solid #3498db;
+        }
+        .chart-section {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 個人資產追蹤儀表板</h1>
+
+        <form id="assetForm">
+            <label>日期
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="date" id="date" required />
+                    <span id="weekdayDisplay" class="weekday small"></span>
+                </div>
+            </label>
+            <label>資產一 (台股) 總值
+                <input type="number" id="asset1" required step="1" min="0" placeholder="請輸入當日台股總市值" />
+            </label>
+            <label>資產二 (美股) 總值
+                <input type="number" id="asset2" required step="1" min="0" placeholder="請輸入當日美股總市值" />
+            </label>
+            <button type="submit">新增或更新紀錄</button>
+            <button type="button" id="clearDataBtn" class="delete-btn" style="background: #95a5a6;">清除所有本機數據</button>
+        </form>
+
+        <div class="latest-summary" id="latestSummary">
+            載入中...
+        </div>
+
+        <div class="chart-section">
+            <h2>📈 總資產累積曲線</h2>
+            <canvas id="totalAssetChart"></canvas>
+        </div>
+
+        <div class="chart-section">
+            <h2>📉 每日變化量比較</h2>
+            <canvas id="dailyChangeChart"></canvas>
+        </div>
+        
+        <div class="chart-section">
+            <h2>📝 歷史紀錄</h2>
+            <div id="recordList">尚無紀錄。</div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
