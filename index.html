@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>資產追蹤器 - 完整版</title>
+    <title>資產追蹤器 - 獨立篩選版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -32,6 +32,10 @@
             padding-bottom: 8px; 
             margin-top: 30px; 
             color: #34495e;
+        }
+        h3 {
+            margin-top: 20px;
+            color: #4f6b86;
         }
         .form-group { 
             margin-bottom: 15px; 
@@ -101,7 +105,7 @@
             line-height: 1.6;
         }
         /* 樣式優化：為時間範圍按鈕添加基礎 active 樣式 */
-        .range-btn {
+        .range-btn, .record-range-btn {
             padding: 6px 10px !important; 
             font-size: 0.85rem;
             flex-grow: 1; 
@@ -165,7 +169,16 @@
             <canvas id="dailyChangeChart"></canvas>
         </div>
 
-        <h2>📋 歷史紀錄 (依上方時間範圍篩選)</h2>
+        <h2>📋 歷史紀錄 (獨立篩選)</h2>
+        
+        <div id="recordTimeRangeControls" style="margin-bottom: 15px; display: flex; gap: 8px;">
+            <button type="button" data-range="30" class="record-range-btn" style="background: #e74c3c;">近 1 個月</button>
+            <button type="button" data-range="90" class="record-range-btn" style="background: #f39c12;">近 3 個月</button>
+            <button type="button" data-range="180" class="record-range-btn" style="background: #2ecc71;">近 6 個月</button>
+            <button type="button" data-range="365" class="record-range-btn" style="background: #3498db;">近 1 年</button>
+            <button type="button" data-range="all" class="record-range-btn" style="background: #607d8b;">全部</button>
+        </div>
+
         <div id="recordList">
             </div>
         
@@ -181,14 +194,16 @@
         const exportDataBtn = document.getElementById('exportDataBtn'); 
         const importDataBtn = document.getElementById('importDataBtn');
         const importFile = document.getElementById('importFile');
-        const timeRangeControls = document.getElementById('timeRangeControls'); 
+        const timeRangeControls = document.getElementById('timeRangeControls'); // 圖表控制項
+        const recordTimeRangeControls = document.getElementById('recordTimeRangeControls'); // 紀錄控制項
         const totalAssetCtx = document.getElementById('totalAssetChart').getContext('2d');
         const dailyChangeCtx = document.getElementById('dailyChangeChart').getContext('2d');
 
         let records = []; 
         let totalAssetChart;
         let dailyChangeChart;
-        let currentChartRange = 'all'; // 預設顯示所有數據
+        let currentChartRange = 'all'; // 圖表預設顯示所有數據
+        let currentRecordRange = 'all'; // 紀錄列表預設顯示所有數據
 
         // --- 輔助函式 ---
 
@@ -224,7 +239,7 @@
         };
 
 
-        // --- 核心邏輯：Excel 公式模擬 ---
+        // --- 核心邏輯：Excel 公式模擬與數據篩選 ---
 
         const calculateRecords = (rawRecords) => {
             // 依日期排序，確保變化量計算正確
@@ -256,22 +271,22 @@
                 };
             });
         };
-
-
-        // --- 數據篩選、載入、儲存與繪圖 ---
-
+        
         // 篩選記錄的輔助函式
-        const filterRecordsByRange = (range) => {
+        const filterRecordsByRange = (sourceRecords, range) => {
             if (range === 'all') {
-                return records;
+                return sourceRecords;
             }
 
             const days = parseInt(range, 10);
             const cutoffDate = new Date();
             cutoffDate.setDate(cutoffDate.getDate() - days);
 
-            return records.filter(r => new Date(r.date) >= cutoffDate);
+            return sourceRecords.filter(r => new Date(r.date) >= cutoffDate);
         };
+
+
+        // --- 數據載入、儲存與繪圖 ---
 
         const loadRecords = () => {
             const stored = localStorage.getItem(STORAGE_KEY);
@@ -279,10 +294,12 @@
             
             records = calculateRecords(rawRecords);
             
-            // 載入數據後，篩選並渲染
-            const filtered = filterRecordsByRange(currentChartRange); 
-            renderRecords(filtered); 
-            drawCharts(filtered); 
+            // 載入數據後，分別根據各自的 currentRange 篩選並渲染
+            const filteredChartData = filterRecordsByRange(records, currentChartRange); 
+            const filteredRecordData = filterRecordsByRange(records, currentRecordRange); 
+
+            renderRecords(filteredRecordData); 
+            drawCharts(filteredChartData); 
             updateSummary();
         };
 
@@ -316,7 +333,7 @@
             `;
         };
 
-        // 繪製圖表
+        // 繪製圖表 (使用 filteredRecords)
         const drawCharts = (filteredRecords) => {
             if (totalAssetChart) totalAssetChart.destroy();
             if (dailyChangeChart) dailyChangeChart.destroy();
@@ -327,7 +344,7 @@
             
             const labels = filteredRecords.map(r => {
                 const parts = r.date.split('-'); 
-                return `${parts[1]}/${parts[2]}`; // 顯示 MM/DD
+                return `${parts[1]}/${parts[2]}`; 
             });
             
             const totalAssets = filteredRecords.map(r => r.totalAsset);
@@ -352,13 +369,7 @@
                     maintainAspectRatio: false, 
                     scales: { 
                         y: { beginAtZero: false },
-                        x: {
-                            ticks: {
-                                autoSkip: true,
-                                maxRotation: 0,
-                                minRotation: 0
-                            }
-                        }
+                        x: { ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 } }
                     }
                 }
             });
@@ -392,12 +403,12 @@
             });
         };
 
-        // 渲染歷史紀錄列表
+        // 渲染歷史紀錄列表 (使用 recordsToRender)
         const renderRecords = (recordsToRender) => {
             recordList.innerHTML = '';
             
             if (recordsToRender.length === 0) {
-                if (records.length > 0 && currentChartRange !== 'all') {
+                if (records.length > 0 && currentRecordRange !== 'all') { 
                     recordList.innerHTML = '<p class="small" style="text-align: center;">當前時間範圍內無紀錄。</p>';
                 } else {
                     recordList.innerHTML = '<p class="small" style="text-align: center;">尚未有任何歷史紀錄。</p>';
@@ -427,8 +438,7 @@
         };
 
 
-        // --- 匯出/匯入邏輯 ---
-
+        // --- 匯出/匯入邏輯 (不變) ---
         const exportData = () => {
             const data = localStorage.getItem(STORAGE_KEY);
             if (!data) {
@@ -548,27 +558,38 @@
 
         importFile.addEventListener('change', importData); 
 
-        // 6. 時間範圍按鈕監聽器
+        // 6. 圖表時間範圍按鈕監聽器 (只影響圖表)
         if (timeRangeControls) {
             timeRangeControls.addEventListener('click', (e) => {
                 if (e.target.classList.contains('range-btn')) {
                     const newRange = e.target.dataset.range;
-                    currentChartRange = newRange;
+                    currentChartRange = newRange; // 更新圖表範圍
                     
-                    // 移除所有按鈕的 active 樣式 (邊框)
                     document.querySelectorAll('.range-btn').forEach(btn => {
                         btn.style.border = 'none';
                     });
-
-                    // 為當前點擊的按鈕添加 active 樣式 (邊框)
                     e.target.style.border = '2px solid #2c3e50'; 
 
-                    // 篩選數據
-                    const filtered = filterRecordsByRange(newRange);
+                    const filtered = filterRecordsByRange(records, newRange); // 篩選圖表數據
+                    drawCharts(filtered); // 繪製圖表
+                }
+            });
+        }
+        
+        // 7. 歷史紀錄時間範圍按鈕監聽器 (只影響列表)
+        if (recordTimeRangeControls) {
+            recordTimeRangeControls.addEventListener('click', (e) => {
+                if (e.target.classList.contains('record-range-btn')) {
+                    const newRange = e.target.dataset.range;
+                    currentRecordRange = newRange; // 更新紀錄範圍
                     
-                    // 重新渲染紀錄列表和圖表
-                    renderRecords(filtered); 
-                    drawCharts(filtered);
+                    document.querySelectorAll('.record-range-btn').forEach(btn => {
+                        btn.style.border = 'none';
+                    });
+                    e.target.style.border = '2px solid #2c3e50'; 
+
+                    const filtered = filterRecordsByRange(records, newRange); // 篩選列表數據
+                    renderRecords(filtered); // 渲染列表
                 }
             });
         }
@@ -579,10 +600,14 @@
             initializeDate(); 
             loadRecords();
             
-            // 確保頁面載入時，預設的「全部」按鈕被標記
-            const defaultBtn = document.querySelector('[data-range="all"]');
-            if (defaultBtn) {
-                defaultBtn.style.border = '2px solid #2c3e50';
+            // 確保頁面載入時，兩個「全部」按鈕被預設標記
+            const defaultChartBtn = document.querySelector('#timeRangeControls [data-range="all"]');
+            if (defaultChartBtn) {
+                defaultChartBtn.style.border = '2px solid #2c3e50';
+            }
+            const defaultRecordBtn = document.querySelector('#recordTimeRangeControls [data-range="all"]');
+            if (defaultRecordBtn) {
+                defaultRecordBtn.style.border = '2px solid #2c3e50';
             }
         };
     </script>
